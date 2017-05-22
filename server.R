@@ -80,8 +80,6 @@ my_edge <- function(split, ordered = FALSE, left = TRUE) {
 shinyServer(function(input, output,session){
   
 
-
-  
   
   buck <- reactive({  #přepočet šoupátka na logaritmy a hezké zaokrouhlení
     
@@ -128,7 +126,7 @@ shinyServer(function(input, output,session){
      
      #get variable labels
      varlaby <- attr(data_object,"variable.labels") 
-
+     print(str(varlaby))
     varlaby
     })
    
@@ -149,11 +147,6 @@ shinyServer(function(input, output,session){
     if (is.numeric(data[,which(colnames(data)==p1)])){
       a <- data[,which(colnames(data)==p1)] 
       
-      print(dim(a))
-      
-      print(summary(a))
-      
-      
       ac <- factor(cut(a, breaks= quantile(a, probs=seq(0,1, by=0.25)), 
                        include.lowest=TRUE),labels=c("1Q","2Q","3Q","4Q"))
       
@@ -161,8 +154,8 @@ shinyServer(function(input, output,session){
     }
     
       
-    print(str(data[,which(colnames(data)==p1)]))
-    print(summary(data[,which(colnames(data)==p1)]))
+    #print(str(data[,which(colnames(data)==p1)]))
+    #print(summary(data[,which(colnames(data)==p1)]))
     
     #toto neni nutne, staci dat do ctree "data=data" pripadne pouzit with(data,ctree(....))
     attach(data, warn.conflicts = F)  # abych nemusel před každou proměnnou psát data$
@@ -175,24 +168,24 @@ shinyServer(function(input, output,session){
   
   output$vyber <- renderUI({     
    wellPanel(
-      fileInput("data","Vložte data SAV", accept=c("sav",".sav")) ,
-      actionButton("r1","Načti proměnné")
+      fileInput("data","Load data (SAV file)", accept=c("sav",".sav")) ,
+      actionButton("r1","Load variables")
     )
     })
   
   output$model <- renderUI({
     wellPanel(
-    textInput("prom","Klíčová proměnná", value = "hyper"),
-    textInput("formula","Vysvětlující proměnné", value ="S50+vaha+obvod"),
-    actionButton("r","Vytvoř/změň strom")
+    textInput("prom","Key variable", value = "hyper"),
+    textInput("formula","Independent variables", value ="S50+vaha+obvod"),
+    actionButton("r","Create/change tree")
     )
     
   })
   
   output$parstromu <- renderUI({
     wellPanel(
-      sliderInput("krit", "Kritérium dělení", value = .95 , min = .05, max = .99, step = .01 ),
-      sliderInput("minbuck", "Zadej min velikost uzlu [log(10)]", value = 1.33, min = 0, max = 5, step = .01),
+      sliderInput("krit", "Criterion strength", value = .95 , min = .05, max = .99, step = .01 ),
+      sliderInput("minbuck", "Minimal size of node [log(10)]", value = 1.33, min = 0, max = 5, step = .01),
       textOutput("uzel")  #ukazuje přepočet logaritmu    
       
       )
@@ -201,7 +194,7 @@ shinyServer(function(input, output,session){
   output$uzel <- renderText({
     buck()
     minb <- isolate(buck())
-    paste("Minimální velikost uzlu:", print(minb,digits=8))
+    paste("Minimal size of node:", minb)
   })
 
   #zobrazí seznam proměnných "varlaby"
@@ -211,7 +204,12 @@ shinyServer(function(input, output,session){
     input$data
     var <- isolate(varlaby())
     if (is.null(var)){return(NULL)}
-    as.matrix(var)
+    print("WTF")
+    print(var)
+    tab <- data.frame(var= names(var),
+                      label=var)
+    
+    #as.matrix(var)
     })
   
   #vytvoří tabulku - koncový uzel x klíčová proměnná
@@ -236,7 +234,7 @@ shinyServer(function(input, output,session){
   output$popis2 <- renderPrint({
     if (input$r==0) {return(NULL)}
     fit <- isolate(strom())
-    print(fit)
+    fit
     })
 
   #graf stromu - 
@@ -314,14 +312,14 @@ shinyServer(function(input, output,session){
   
   output$tabset <- renderUI({
     tabsetPanel(id="tab1",
-                tabPanel("Nápověda",napoveda), 
-                tabPanel("Seznam proměnných",value="seznam",
-                         conditionalPanel("input.r1==0", paste("Po zadání souboru se zobrazí seznam proměnných nebo je možné použít ukázková data [Načti proměnné]")),
+                tabPanel("Help",napoveda), 
+                tabPanel("Variable list",value="seznam",
+                         conditionalPanel("input.r1==0", paste("Load data to show variables of use demo-data [Load variables]")),
                          tableOutput("prehled")
                          ),
-                tabPanel("Strom", value = "strom", plotOutput("pietree")),
-                tabPanel("Popis stromu",value = 3, 
-                         paste("Počty respondentů v jednotlivých uzlech"),
+                tabPanel("Tree", value = "strom", plotOutput("pietree")),
+                tabPanel("Tree description",value = 3, 
+                         paste("Numbers of cases in each node"),
                          tableOutput("popis"), 
                          tableOutput("popisN"), 
                          verbatimTextOutput("popis2")   
